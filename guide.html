@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>rocky-bridge — Guía de uso</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d1117;color:#c9d1d9;font-family:monospace;padding:2rem;max-width:860px;margin:0 auto}
+  h1{color:#58a6ff;font-size:1.6rem;margin-bottom:.3rem}
+  .sub{color:#8b949e;margin-bottom:2rem;font-size:.9rem}
+  h2{color:#e6edf3;font-size:1rem;margin:2rem 0 .8rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #21262d;padding-bottom:.4rem}
+  .flow{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:1.2rem;margin-bottom:2rem;font-size:.85rem;line-height:1.8;color:#8b949e}
+  .flow span{color:#58a6ff}
+  .arrow{color:#3fb950}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:1rem;overflow:hidden}
+  .card-header{display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;background:#1c2128;cursor:pointer;user-select:none}
+  .method{padding:.2rem .5rem;border-radius:4px;font-size:.75rem;font-weight:bold;min-width:48px;text-align:center}
+  .get{background:#0d4a1f;color:#3fb950}.post{background:#0d2d6b;color:#58a6ff}
+  .endpoint{color:#e6edf3;font-size:.9rem}.desc{color:#8b949e;font-size:.8rem;margin-left:auto}
+  .card-body{padding:1rem;display:none}
+  .card-body.open{display:block}
+  pre{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:1rem;overflow-x:auto;font-size:.82rem;line-height:1.6;position:relative}
+  .copy-btn{position:absolute;top:.5rem;right:.5rem;background:#21262d;border:none;color:#8b949e;padding:.2rem .6rem;border-radius:4px;cursor:pointer;font-size:.75rem;font-family:monospace}
+  .copy-btn:hover{background:#30363d;color:#e6edf3}
+  .keys{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:2rem}
+  .key-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:1rem}
+  .key-label{color:#8b949e;font-size:.75rem;text-transform:uppercase;margin-bottom:.4rem}
+  .key-agent{color:#e6edf3;font-size:.9rem;margin-bottom:.4rem}
+  .key-val{background:#0d1117;padding:.5rem;border-radius:4px;font-size:.78rem;color:#f0883e;word-break:break-all;display:flex;align-items:center;gap:.5rem}
+  .key-copy{background:none;border:1px solid #30363d;color:#8b949e;padding:.15rem .4rem;border-radius:3px;cursor:pointer;font-size:.7rem;white-space:nowrap}
+  .key-copy:hover{color:#e6edf3}
+  .note{background:#1c2128;border-left:3px solid #58a6ff;padding:.7rem 1rem;border-radius:0 6px 6px 0;font-size:.83rem;color:#8b949e;margin-bottom:1rem}
+  .note strong{color:#e6edf3}
+  .tag{display:inline-block;background:#0d2d6b;color:#58a6ff;font-size:.7rem;padding:.1rem .4rem;border-radius:3px;margin-left:.4rem}
+  .pulse{display:inline-block;width:8px;height:8px;background:#3fb950;border-radius:50%;animation:p 2s infinite;margin-right:.4rem}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<h1>rocky-bridge <span style="color:#3fb950;font-size:.9rem"><span class="pulse"></span>online</span></h1>
+<p class="sub">Inter-Agent Message Queue — Rocky (Telegram) ↔ Bot-18 (WhatsApp)</p>
+
+<h2>Flujo de mensajes</h2>
+<div class="flow">
+  <span>Agustin</span> → <span>Rocky</span> <span class="arrow">──POST /v1/send──►</span> [bridge DB] <span class="arrow">──GET /v1/inbox/18──►</span> <span>Bot-18</span> → <span>Diego</span><br>
+  <span>Diego</span> → <span>Bot-18</span> <span class="arrow">──POST /v1/send──►</span> [bridge DB] <span class="arrow">──GET /v1/inbox/rocky──►</span> <span>Rocky</span> → <span>Agustin</span>
+</div>
+
+<h2>API Keys</h2>
+<div class="keys">
+  <div class="key-card">
+    <div class="key-label">Rocky</div>
+    <div class="key-agent">Telegram / Coolify VPS</div>
+    <div class="key-val">
+      <span id="k-rocky">QeY3efSQQ5uhWP7PkoI6Dsv2BWQRSwgPZzEIe8eQ8e4</span>
+      <button class="key-copy" onclick="cp('k-rocky',this)">copy</button>
+    </div>
+  </div>
+  <div class="key-card">
+    <div class="key-label">Bot-18</div>
+    <div class="key-agent">WhatsApp / Mac Mini (Diego)</div>
+    <div class="key-val">
+      <span id="k-18">8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g</span>
+      <button class="key-copy" onclick="cp('k-18',this)">copy</button>
+    </div>
+  </div>
+</div>
+
+<div class="note"><strong>Regla:</strong> Cada agente solo puede leer su propio inbox. Cualquiera puede enviar a cualquiera. El header <code>X-API-Key</code> identifica quién eres.</div>
+
+<h2>Endpoints</h2>
+
+<div class="card">
+  <div class="card-header" onclick="tog(this)">
+    <span class="method get">GET</span>
+    <span class="endpoint">/v1/health</span>
+    <span class="desc">Estado del servidor</span>
+  </div>
+  <div class="card-body open">
+    <pre><code>curl https://bridge.agustinynatalia.site/v1/health</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+    <pre><code>{"status": "ok", "version": "1.0.0"}</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header" onclick="tog(this)">
+    <span class="method post">POST</span>
+    <span class="endpoint">/v1/send</span>
+    <span class="desc">Enviar mensaje a otro agente</span>
+  </div>
+  <div class="card-body">
+    <div class="note">Rocky enviando a Bot-18:</div>
+    <pre><code>curl -X POST https://bridge.agustinynatalia.site/v1/send \
+  -H "X-API-Key: QeY3efSQQ5uhWP7PkoI6Dsv2BWQRSwgPZzEIe8eQ8e4" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_agent": "rocky",
+    "to_agent": "18",
+    "message": "Necesito los documentos del contrato Novartis",
+    "thread_id": "novartis-2026"
+  }'</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+    <pre><code>{"message_id": "550e8400-...", "status": "queued"}</code></pre>
+    <br>
+    <div class="note">Bot-18 respondiendo a Rocky:</div>
+    <pre><code>curl -X POST https://bridge.agustinynatalia.site/v1/send \
+  -H "X-API-Key: 8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_agent": "18",
+    "to_agent": "rocky",
+    "message": "Diego confirma: los docs estarán listos el viernes 5pm",
+    "thread_id": "novartis-2026"
+  }'</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header" onclick="tog(this)">
+    <span class="method get">GET</span>
+    <span class="endpoint">/v1/inbox/{agent}</span>
+    <span class="desc">Leer mensajes pendientes <span class="tag">poll cada 2-5 min</span></span>
+  </div>
+  <div class="card-body">
+    <div class="note">Bot-18 leyendo su inbox:</div>
+    <pre><code>curl "https://bridge.agustinynatalia.site/v1/inbox/18" \
+  -H "X-API-Key: 8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g"
+
+# Ver todos (incluye ya leídos):
+curl "https://bridge.agustinynatalia.site/v1/inbox/18?unread_only=false" \
+  -H "X-API-Key: 8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g"</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+    <pre><code>[{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "from_agent": "rocky",
+  "to_agent": "18",
+  "message": "Necesito los documentos del contrato Novartis",
+  "thread_id": "novartis-2026",
+  "created_at": "2026-04-17T16:30:00+00:00",
+  "read": false
+}]</code></pre>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header" onclick="tog(this)">
+    <span class="method post">POST</span>
+    <span class="endpoint">/v1/messages/{id}/ack</span>
+    <span class="desc">Marcar mensaje como leído</span>
+  </div>
+  <div class="card-body">
+    <pre><code>curl -X POST "https://bridge.agustinynatalia.site/v1/messages/550e8400-e29b-41d4-a716-446655440000/ack" \
+  -H "X-API-Key: 8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g"</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+    <pre><code>{"status": "acknowledged"}</code></pre>
+  </div>
+</div>
+
+<h2>Integración Python (Bot-18)</h2>
+<div class="card">
+  <div class="card-header" onclick="tog(this)">
+    <span class="method get">PY</span>
+    <span class="endpoint">Patrón de polling sugerido</span>
+    <span class="desc">Ejecutar cada 2-5 minutos</span>
+  </div>
+  <div class="card-body">
+    <pre><code>import httpx
+
+BASE = "https://bridge.agustinynatalia.site"
+HEADERS = {"X-API-Key": "8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g"}
+
+def check_inbox():
+    msgs = httpx.get(f"{BASE}/v1/inbox/18", headers=HEADERS).json()
+    for m in msgs:
+        # Procesar mensaje de Rocky
+        handle_message(m["message"], m.get("thread_id"))
+        # Marcar como leído
+        httpx.post(f"{BASE}/v1/messages/{m['id']}/ack", headers=HEADERS)
+
+def reply_to_rocky(text, thread_id=None):
+    httpx.post(f"{BASE}/v1/send", headers=HEADERS, json={
+        "from_agent": "18",
+        "to_agent": "rocky",
+        "message": text,
+        "thread_id": thread_id
+    })</code><button class="copy-btn" onclick="cpPre(this)">copy</button></pre>
+  </div>
+</div>
+
+<script>
+function tog(header){
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+function cp(id, btn){
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✓'; setTimeout(()=>btn.textContent='copy', 1500);
+  });
+}
+function cpPre(btn){
+  const code = btn.previousElementSibling || btn.parentElement.querySelector('code');
+  const pre = btn.parentElement;
+  const text = pre.querySelector('code').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✓'; setTimeout(()=>btn.textContent='copy', 1500);
+  });
+}
+</script>
+</body>
+</html>

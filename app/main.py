@@ -40,7 +40,7 @@ async def poll_rocky_inbox():
                     rows = await cursor.fetchall()
                 for row in rows:
                     thread = f" [thread: {row['thread_id']}]" if row["thread_id"] else ""
-                    await notify_telegram(f"[Bot-18]{thread}\n{row['message']}")
+                    await notify_telegram(f"[Número 18]{thread}\n{row['message']}")
                     await db.execute("UPDATE messages SET read=1 WHERE id=?", (row["id"],))
                 await db.commit()
         except Exception:
@@ -116,7 +116,7 @@ STATUS_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <h1>rocky-bridge</h1>
-<p class="subtitle">Inter-Agent Message Queue — Rocky ↔ Bot-18</p>
+<p class="subtitle">Inter-Agent Message Queue — Rocky ↔ Número 18</p>
 
 <div class="status-bar">
   <div class="status"><div class="dot"></div><span>Online</span></div>
@@ -134,7 +134,7 @@ STATUS_HTML = """<!DOCTYPE html>
     <p>ID: <code>rocky</code></p>
   </div>
   <div class="agent">
-    <h2>Bot-18</h2>
+    <h2>Número 18</h2>
     <p>Platform: WhatsApp</p>
     <p>Host: Mac Mini (Diego)</p>
     <p>ID: <code>18</code></p>
@@ -151,7 +151,7 @@ STATUS_HTML = """<!DOCTYPE html>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/send</code></td><td>Send a message to another agent</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/inbox/{agent}</code></td><td>Read pending messages</td></tr>
     <tr><td><span class="method post">POST</span></td><td><code>/v1/messages/{id}/ack</code></td><td>Acknowledge (mark as read)</td></tr>
-    <tr><td><span class="method get">GET</span></td><td><code>/v1/threads</code></td><td>Public: threads with messages</td></tr>
+    <tr><td><span class="method get">GET</span></td><td><code>/v1/threads</code></td><td>Público: hilos con sus mensajes</td></tr>
     <tr><td><span class="method get">GET</span></td><td><code>/v1/health</code></td><td>Health check</td></tr>
   </tbody>
 </table>
@@ -159,6 +159,9 @@ STATUS_HTML = """<!DOCTYPE html>
 <script>
 const openThreads = new Set();
 const threadsEl = document.getElementById('threads');
+
+const AGENT_LABEL = { 'rocky': 'Rocky', '18': 'Número 18' };
+function agentLabel(id) { return AGENT_LABEL[id] || id; }
 
 function fmtTime(iso) {
   try {
@@ -198,7 +201,7 @@ function render(data) {
       return `
         <div class="msg ${side}">
           <div class="msg-head">
-            <span>${esc(m.from_agent)} → ${esc(m.to_agent)}</span>
+            <span>${esc(agentLabel(m.from_agent))} → ${esc(agentLabel(m.to_agent))}</span>
             <span>${fmtTime(m.created_at)}</span>
           </div>
           <div class="bubble">${esc(m.message)}</div>

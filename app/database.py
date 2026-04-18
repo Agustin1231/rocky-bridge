@@ -15,8 +15,13 @@ async def get_db():
                 message TEXT NOT NULL,
                 thread_id TEXT,
                 created_at TEXT NOT NULL,
-                read INTEGER NOT NULL DEFAULT 0
+                read INTEGER NOT NULL DEFAULT 0,
+                attachments TEXT
             )
         """)
+        try:
+            await db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT")
+        except aiosqlite.OperationalError:
+            pass
         await db.commit()
         yield db

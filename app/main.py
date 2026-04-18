@@ -1,5 +1,6 @@
 import uuid
 import os
+import json
 import asyncio
 import aiohttp
 from datetime import datetime, timezone
@@ -13,8 +14,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from .database import get_db, DATABASE_URL
-from .models import SendRequest, SendResponse, MessageRecord, AckResponse, HealthResponse
+from .models import SendRequest, SendResponse, MessageRecord, Attachment, AckResponse, HealthResponse
 from .auth import get_current_agent
+
+MAX_ATTACHMENT_BYTES = 512 * 1024
+MAX_ATTACHMENTS_PER_MESSAGE = 5
+
+def _serialize_attachments(atts):
+    if not atts:
+        return None
+    return json.dumps([a.model_dump() for a in atts])
+
+def _deserialize_attachments(raw):
+    if not raw:
+        return None
+    try:
+        return [Attachment(**a) for a in json.loads(raw)]
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return None
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8635492022:AAHR_4msWPF9neFvdZxP3ivoycbfmuBbqXE")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "7030368555")
@@ -266,7 +283,7 @@ async def list_threads(
 ):
     db.row_factory = aiosqlite.Row
     async with db.execute(
-        "SELECT id, from_agent, to_agent, message, thread_id, created_at, read "
+        "SELECT id, from_agent, to_agent, message, thread_id, created_at, read, attachments "
         "FROM messages ORDER BY created_at ASC"
     ) as cursor:
         rows = await cursor.fetchall()
@@ -274,6 +291,7 @@ async def list_threads(
     groups: dict[str, list[dict]] = {}
     for r in rows:
         key = r["thread_id"] or ""
+        atts = _deserialize_attachments(r["attachments"])
         groups.setdefault(key, []).append({
             "id": r["id"],
             "from_agent": r["from_agent"],
@@ -282,6 +300,7 @@ async def list_threads(
             "thread_id": r["thread_id"],
             "created_at": r["created_at"],
             "read": bool(r["read"]),
+            "attachments": [a.model_dump() for a in atts] if atts else None,
         })
 
     threads = []
@@ -304,11 +323,17 @@ async def send_message(
 ):
     if body.from_agent != agent:
         raise HTTPException(status_code=403, detail="Cannot send as another agent")
+    if body.attachments:
+        if len(body.attachments) > MAX_ATTACHMENTS_PER_MESSAGE:
+            raise HTTPException(status_code=413, detail=f"Max {MAX_ATTACHMENTS_PER_MESSAGE} attachments per message")
+        for att in body.attachments:
+            if len(att.content_b64) > MAX_ATTACHMENT_BYTES * 4 // 3 + 16:
+                raise HTTPException(status_code=413, detail=f"Attachment {att.filename} exceeds {MAX_ATTACHMENT_BYTES} bytes")
     msg_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     await db.execute(
-        "INSERT INTO messages (id, from_agent, to_agent, message, thread_id, created_at, read) VALUES (?,?,?,?,?,?,0)",
-        (msg_id, body.from_agent, body.to_agent, body.message, body.thread_id, created_at)
+        "INSERT INTO messages (id, from_agent, to_agent, message, thread_id, created_at, read, attachments) VALUES (?,?,?,?,?,?,0,?)",
+        (msg_id, body.from_agent, body.to_agent, body.message, body.thread_id, created_at, _serialize_attachments(body.attachments))
     )
     await db.commit()
     return SendResponse(message_id=msg_id, status="queued")
@@ -323,7 +348,7 @@ async def get_inbox(
 ):
     if agent_id != current_agent:
         raise HTTPException(status_code=403, detail="Cannot read another agent inbox")
-    query = "SELECT id, from_agent, to_agent, message, thread_id, created_at, read FROM messages WHERE to_agent=?"
+    query = "SELECT id, from_agent, to_agent, message, thread_id, created_at, read, attachments FROM messages WHERE to_agent=?"
     params: list = [agent_id]
     if unread_only:
         query += " AND read=0"
@@ -335,7 +360,8 @@ async def get_inbox(
     return [MessageRecord(
         id=r["id"], from_agent=r["from_agent"], to_agent=r["to_agent"],
         message=r["message"], thread_id=r["thread_id"],
-        created_at=r["created_at"], read=bool(r["read"])
+        created_at=r["created_at"], read=bool(r["read"]),
+        attachments=_deserialize_attachments(r["attachments"])
     ) for r in rows]
 
 @app.post("/v1/messages/{message_id}/ack", response_model=AckResponse)

@@ -1,11 +1,17 @@
 from pydantic import BaseModel
 from typing import Optional
 
+class Attachment(BaseModel):
+    filename: str
+    content_b64: str
+    content_type: Optional[str] = "application/octet-stream"
+
 class SendRequest(BaseModel):
     from_agent: str
     to_agent: str
     message: str
     thread_id: Optional[str] = None
+    attachments: Optional[list[Attachment]] = None
 
 class SendResponse(BaseModel):
     message_id: str
@@ -19,6 +25,7 @@ class MessageRecord(BaseModel):
     thread_id: Optional[str]
     created_at: str
     read: bool
+    attachments: Optional[list[Attachment]] = None
 
 class AckResponse(BaseModel):
     status: str

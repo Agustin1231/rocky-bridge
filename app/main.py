@@ -1,11 +1,8 @@
 import uuid
 import os
 import json
-import asyncio
-import aiohttp
 from datetime import datetime, timezone
 from typing import Optional
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -34,44 +31,7 @@ def _deserialize_attachments(raw):
     except (json.JSONDecodeError, TypeError, ValueError):
         return None
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8635492022:AAHR_4msWPF9neFvdZxP3ivoycbfmuBbqXE")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "7030368555")
-ROCKY_API_KEY = os.getenv("ROCKY_API_KEY", "")
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL_SECONDS", "60"))
-
-async def notify_telegram(text: str):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    async with aiohttp.ClientSession() as session:
-        await session.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": text})
-
-async def poll_rocky_inbox():
-    from pathlib import Path
-    await asyncio.sleep(10)
-    while True:
-        try:
-            Path(DATABASE_URL).parent.mkdir(parents=True, exist_ok=True)
-            async with aiosqlite.connect(DATABASE_URL) as db:
-                db.row_factory = aiosqlite.Row
-                async with db.execute(
-                    "SELECT id, from_agent, message, thread_id FROM messages WHERE to_agent='rocky' AND read=0 ORDER BY created_at ASC"
-                ) as cursor:
-                    rows = await cursor.fetchall()
-                for row in rows:
-                    thread = f" [thread: {row['thread_id']}]" if row["thread_id"] else ""
-                    await notify_telegram(f"[Número 18]{thread}\n{row['message']}")
-                    await db.execute("UPDATE messages SET read=1 WHERE id=?", (row["id"],))
-                await db.commit()
-        except Exception:
-            pass
-        await asyncio.sleep(POLL_INTERVAL)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    task = asyncio.create_task(poll_rocky_inbox())
-    yield
-    task.cancel()
-
-app = FastAPI(title="rocky-bridge", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="rocky-bridge", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

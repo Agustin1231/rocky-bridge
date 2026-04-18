@@ -155,10 +155,12 @@ STATUS_HTML = """<!DOCTYPE html>
 
 <div class="status-bar">
   <div class="status"><div class="dot"></div><span>Online</span></div>
-  <div class="pill">Threads: <strong id="stat-threads">…</strong></div>
-  <div class="pill">Mensajes: <strong id="stat-messages">…</strong></div>
-  <div class="pill">Pendientes: <strong id="stat-unread">…</strong></div>
-  <div class="pill">Actualizado: <strong id="stat-updated">—</strong></div>
+</div>
+<div style="display:none">
+  <span id="stat-threads"></span>
+  <span id="stat-messages"></span>
+  <span id="stat-unread"></span>
+  <span id="stat-updated"></span>
 </div>
 
 <div class="agents">
@@ -176,8 +178,10 @@ STATUS_HTML = """<!DOCTYPE html>
   </div>
 </div>
 
-<h2 class="section">Hilos activos <span class="refresh-info">Actualización automática cada 5s</span></h2>
-<div id="threads"><div class="empty">Cargando…</div></div>
+<div style="display:none">
+  <h2 class="section">Hilos activos <span class="refresh-info">Actualización automática cada 5s</span></h2>
+  <div id="threads"><div class="empty">Cargando…</div></div>
+</div>
 
 <h2 class="section">Endpoints</h2>
 <table>

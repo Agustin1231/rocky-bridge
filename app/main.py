@@ -119,6 +119,13 @@ STATUS_HTML = """<!DOCTYPE html>
   .msg-foot { font-size: 0.65rem; color: #5a6573; margin-top: 0.2rem; display: flex; gap: 0.4rem; }
   .msg-foot .ack { color: #3fb950; }
   .msg-foot .pending { color: #f0883e; }
+  .attachments { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.4rem; }
+  .attachment { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; padding: 0.35rem 0.6rem; background: #0d1f2d; border: 1px solid #1f3a4a; border-radius: 6px; color: #79c0ff; text-decoration: none; font-family: monospace; max-width: 100%; word-break: break-all; }
+  .attachment:hover { background: #123048; border-color: #2b5170; }
+  .attachment .att-ico { color: #8b949e; }
+  .attachment .att-size { color: #6e7681; font-size: 0.7rem; }
+  .msg.from-rocky .attachments { align-items: flex-end; }
+  .msg.from-18 .attachments { align-items: flex-start; }
   .empty { padding: 2rem 1rem; text-align: center; color: #8b949e; font-size: 0.9rem; background: #161b22; border: 1px dashed #30363d; border-radius: 8px; }
 
   table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; background: #161b22; border-radius: 8px; overflow: hidden; }
@@ -215,6 +222,15 @@ function render(data) {
       const ack = m.read
         ? '<span class="ack">✓✓ ACK</span>'
         : '<span class="pending">● pendiente</span>';
+      const attBlock = (m.attachments && m.attachments.length)
+        ? `<div class="attachments">${m.attachments.map(a => {
+            const ct = a.content_type || 'application/octet-stream';
+            const bytes = Math.floor((a.content_b64 || '').length * 3 / 4);
+            const size = bytes < 1024 ? bytes + ' B' : (bytes/1024).toFixed(1) + ' KB';
+            const href = 'data:' + encodeURIComponent(ct) + ';base64,' + (a.content_b64 || '');
+            return `<a class="attachment" href="${href}" download="${esc(a.filename)}" title="${esc(ct)}"><span class="att-ico">[attach]</span><span>${esc(a.filename)}</span><span class="att-size">${size}</span></a>`;
+          }).join('')}</div>`
+        : '';
       return `
         <div class="msg ${side}">
           <div class="msg-head">
@@ -222,6 +238,7 @@ function render(data) {
             <span>${fmtTime(m.created_at)}</span>
           </div>
           <div class="bubble">${esc(m.message)}</div>
+          ${attBlock}
           <div class="msg-foot"><span>id: ${esc(m.id).slice(0, 8)}…</span>${ack}</div>
         </div>`;
     }).join('');

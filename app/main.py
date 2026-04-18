@@ -14,16 +14,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from datetime import timedelta
-
 from .database import get_db, DATABASE_URL
-from .models import (
-    SendRequest, SendResponse, MessageRecord, Attachment, AckResponse, HealthResponse,
-    ReportCreateRequest, ReportCreateResponse,
-)
+from .models import SendRequest, SendResponse, MessageRecord, Attachment, AckResponse, HealthResponse
 from .auth import get_current_agent
-
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "https://bridge.agustinynatalia.site")
 
 MAX_ATTACHMENT_BYTES = 512 * 1024
 MAX_ATTACHMENTS_PER_MESSAGE = 5
@@ -437,85 +430,3 @@ async def ack_message(
     await db.execute("UPDATE messages SET read=1 WHERE id=?", (message_id,))
     await db.commit()
     return AckResponse(status="acknowledged")
-
-
-REPORT_SHELL = """<!DOCTYPE html>
-<html lang="es"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{title}</title>
-<style>
-  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-  body {{ background: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-         padding: 1.5rem; max-width: 720px; margin: 0 auto; line-height: 1.55; font-size: 16px; }}
-  h1 {{ color: #58a6ff; font-size: 1.5rem; margin-bottom: 0.25rem; }}
-  h2 {{ color: #7ee787; font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }}
-  h3 {{ color: #d2a8ff; font-size: 1rem; margin: 1rem 0 0.4rem; }}
-  p {{ margin-bottom: 0.7rem; }}
-  ul, ol {{ margin: 0 0 0.8rem 1.2rem; }}
-  li {{ margin-bottom: 0.3rem; }}
-  code {{ background: #1c2128; padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.9em; color: #e5c07b; }}
-  pre {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.8rem; overflow-x: auto; margin-bottom: 0.8rem; }}
-  pre code {{ background: transparent; padding: 0; color: #c9d1d9; font-size: 0.85em; }}
-  table {{ border-collapse: collapse; width: 100%; margin-bottom: 1rem; font-size: 0.92em; }}
-  th, td {{ text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid #30363d; vertical-align: top; }}
-  th {{ background: #161b22; color: #58a6ff; font-weight: 600; }}
-  tr:hover td {{ background: #161b22; }}
-  a {{ color: #58a6ff; text-decoration: none; }} a:hover {{ text-decoration: underline; }}
-  .meta {{ color: #8b949e; font-size: 0.85rem; margin-bottom: 1.5rem; }}
-  blockquote {{ border-left: 3px solid #30363d; padding: 0.3rem 0 0.3rem 0.8rem; color: #8b949e; margin-bottom: 0.8rem; }}
-  .footer {{ color: #6e7681; font-size: 0.75rem; margin-top: 3rem; text-align: center; border-top: 1px solid #30363d; padding-top: 1rem; }}
-</style></head>
-<body>
-<h1>{title}</h1>
-<div class="meta">{meta}</div>
-{html}
-<div class="footer">Rocky · {meta}</div>
-</body></html>"""
-
-
-@app.post("/v1/reports", response_model=ReportCreateResponse)
-async def create_report(
-    body: ReportCreateRequest,
-    agent: str = Depends(get_current_agent),
-    db: aiosqlite.Connection = Depends(get_db),
-):
-    if agent != "rocky":
-        raise HTTPException(status_code=403, detail="Only rocky can publish reports")
-    slug = uuid.uuid4().hex[:12]
-    created_at = datetime.now(timezone.utc)
-    ttl = body.ttl_hours if body.ttl_hours and body.ttl_hours > 0 else 168
-    expires_at = (created_at + timedelta(hours=ttl)).isoformat()
-    await db.execute(
-        "INSERT INTO reports(slug,title,html,created_at,expires_at) VALUES(?,?,?,?,?)",
-        (slug, body.title, body.html, created_at.isoformat(), expires_at),
-    )
-    await db.commit()
-    return ReportCreateResponse(
-        slug=slug,
-        url=f"{PUBLIC_BASE_URL}/reports/{slug}",
-        expires_at=expires_at,
-    )
-
-
-@app.get("/reports/{slug}", response_class=HTMLResponse)
-async def read_report(
-    slug: str,
-    db: aiosqlite.Connection = Depends(get_db),
-):
-    async with db.execute(
-        "SELECT title, html, created_at, expires_at FROM reports WHERE slug=?", (slug,)
-    ) as cursor:
-        row = await cursor.fetchone()
-    if not row:
-        raise HTTPException(status_code=404, detail="Report not found")
-    title, html, created_at, expires_at = row
-    if expires_at:
-        try:
-            exp = datetime.fromisoformat(expires_at)
-            if datetime.now(timezone.utc) > exp:
-                raise HTTPException(status_code=410, detail="Report expired")
-        except ValueError:
-            pass
-    meta = f"publicado {created_at[:19].replace('T',' ')} UTC"
-    return HTMLResponse(REPORT_SHELL.format(title=title, meta=meta, html=html))

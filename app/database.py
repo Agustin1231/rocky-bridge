@@ -23,5 +23,14 @@ async def get_db():
             await db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT")
         except aiosqlite.OperationalError:
             pass
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS reports (
+                slug TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                html TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                expires_at TEXT
+            )
+        """)
         await db.commit()
         yield db

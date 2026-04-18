@@ -33,3 +33,15 @@ class AckResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class ReportCreateRequest(BaseModel):
+    title: str
+    html: str
+    ttl_hours: Optional[int] = 168
+
+
+class ReportCreateResponse(BaseModel):
+    slug: str
+    url: str
+    expires_at: Optional[str] = None

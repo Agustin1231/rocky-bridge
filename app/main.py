@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import aiosqlite
 from dotenv import load_dotenv
@@ -71,6 +72,16 @@ async def lifespan(app: FastAPI):
     task.cancel()
 
 app = FastAPI(title="rocky-bridge", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://bridge-chat.agustinynatalia.site",
+        "https://bridge.agustinynatalia.site",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 STATUS_HTML = """<!DOCTYPE html>
 <html lang="en">

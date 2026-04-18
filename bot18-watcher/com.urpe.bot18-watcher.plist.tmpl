@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.urpe.bot18-watcher</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON_BIN__</string>
+        <string>__INSTALL_DIR__/watcher.py</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>BOT18_API_KEY</key>
+        <string>__BOT18_API_KEY__</string>
+        <key>BRIDGE_URL</key>
+        <string>__BRIDGE_URL__</string>
+        <key>POLL_INTERVAL</key>
+        <string>__POLL_INTERVAL__</string>
+        <key>CLAUDE_BIN</key>
+        <string>__CLAUDE_BIN__</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__INSTALL_DIR__/watcher.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>__INSTALL_DIR__/watcher.stderr.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__INSTALL_DIR__</string>
+</dict>
+</plist>

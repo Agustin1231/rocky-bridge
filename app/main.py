@@ -1,7 +1,10 @@
+import base64
+import re
 import uuid
 import os
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +20,43 @@ from .auth import get_current_agent
 
 MAX_ATTACHMENT_BYTES = 512 * 1024
 MAX_ATTACHMENTS_PER_MESSAGE = 5
+
+DLP_FROM = "rocky"
+DLP_TO = "18"
+DLP_LOG = Path(os.getenv("DLP_LOG_PATH", "/tmp/rocky-bridge-dlp.log"))
+DLP_PATTERNS: list[tuple[str, str]] = [
+    (r"\bdiego\b", "Diego (nombre)"),
+    (r"\burquijo\b", "Urquijo (apellido)"),
+    (r"dau@urpeailab\.com", "email Diego (urpeailab)"),
+    (r"durquijo@urpe\.com", "email Diego (urpe)"),
+    (r"\burpe\b", "URPE (cliente)"),
+    (r"novartis", "Novartis (cliente)"),
+    (r"naranja[\s\-_]*media", "Naranja Media (agencia)"),
+    (r"naranjamedia", "naranjamedia (dominio)"),
+    (r"aperaltaguarin@gmail\.com", "email personal"),
+    (r"peraltaguarinagustin@gmail\.com", "email personal"),
+    (r"\.credentials", "ruta credenciales"),
+    (r"/drafts/", "ruta drafts"),
+    (r"\bcoolify\b", "Coolify (infra)"),
+    (r"cloudflare", "Cloudflare (infra)"),
+]
+_DLP_COMPILED = [(re.compile(p, re.IGNORECASE), label) for p, label in DLP_PATTERNS]
+
+
+def dlp_scan(text: Optional[str]) -> list[str]:
+    if not text:
+        return []
+    return [label for rx, label in _DLP_COMPILED if rx.search(text)]
+
+
+def dlp_log(from_agent: str, to_agent: str, hits: list[str], snippet: str) -> None:
+    try:
+        ts = datetime.now(timezone.utc).isoformat()
+        DLP_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with DLP_LOG.open("a") as f:
+            f.write(f"[{ts}] {from_agent}->{to_agent} hits={hits} snippet={snippet[:200]!r}\n")
+    except Exception:
+        pass
 
 def _serialize_attachments(atts):
     if not atts:
@@ -321,6 +361,25 @@ async def send_message(
         for att in body.attachments:
             if len(att.content_b64) > MAX_ATTACHMENT_BYTES * 4 // 3 + 16:
                 raise HTTPException(status_code=413, detail=f"Attachment {att.filename} exceeds {MAX_ATTACHMENT_BYTES} bytes")
+    if body.from_agent == DLP_FROM and body.to_agent == DLP_TO:
+        hits = dlp_scan(body.message)
+        if body.attachments:
+            for att in body.attachments:
+                hits += dlp_scan(att.filename)
+                ctype = (att.content_type or "").lower()
+                if ctype.startswith("text/") or ctype in ("application/json", "application/x-yaml", "application/yaml"):
+                    try:
+                        decoded = base64.b64decode(att.content_b64, validate=False).decode("utf-8", errors="replace")
+                        hits += dlp_scan(decoded)
+                    except Exception:
+                        pass
+        hits = sorted(set(hits))
+        if hits:
+            dlp_log(body.from_agent, body.to_agent, hits, body.message or "")
+            raise HTTPException(
+                status_code=422,
+                detail=f"DLP blocked ({DLP_FROM}->{DLP_TO}): {', '.join(hits)}. Pedile autorización a Agustin."
+            )
     msg_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     await db.execute(

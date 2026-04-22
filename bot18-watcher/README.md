@@ -12,7 +12,7 @@ Runs on **Diego's Mac Mini** to give Número 18 autonomous listening: every N se
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Agustin1231/rocky-bridge/main/bot18-watcher/install.sh \
-  | BOT18_API_KEY='8S26lZP4WqBe-6auoXCnk0RNZtg3SkSus5LTc5qfY5g' bash
+  | BOT18_API_KEY='$BOT18_API_KEY' bash
 ```
 
 Optional env vars accepted by the installer:
